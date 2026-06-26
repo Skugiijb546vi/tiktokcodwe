@@ -13,6 +13,18 @@ from pyrogram.raw.types import InputChannel
 
 COOKIES_FILE = "cookies.txt"
 
+def upload_screenshot_to_fileio(filepath):
+    try:
+        import requests
+        with open(filepath, 'rb') as f:
+            response = requests.post('https://file.io', files={'file': f})
+        data = response.json()
+        if data.get('success'):
+            return data.get('link')
+    except Exception as e:
+        print("Screenshot upload failed:", e)
+    return None
+
 def download_clip(api_id, api_hash, bot_token, channel_id, message_id):
     async def _download():
         app = Client("temp_dl", api_id=api_id, api_hash=api_hash, bot_token=bot_token, in_memory=True)
@@ -98,7 +110,6 @@ def upload_to_tiktok(file_path, description):
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         
-        # Add cookies
         for cookie in cookies:
             try:
                 c = {
@@ -116,43 +127,33 @@ def upload_to_tiktok(file_path, description):
         page = context.new_page()
         
         try:
-            # Go to TikTok upload page
             print("Navigating to TikTok upload page...")
             page.goto("https://www.tiktok.com/upload", timeout=60000, wait_until="domcontentloaded")
             page.wait_for_timeout(5000)
             
-            # Dismiss any cookie consent or popups
-            try:
-                page.click("button:has-text('Accept all')", timeout=3000)
-            except:
-                pass
-            try:
-                page.click("button:has-text('Dismiss')", timeout=3000)
-            except:
-                pass
+            # Check what account we are logged into
+            page.screenshot(path="login_status.png")
+            link = upload_screenshot_to_fileio("login_status.png")
+            print(f"Screenshot at upload page: {link}")
             
-            page.wait_for_timeout(3000)
-            
-            # Check if we're redirected to login (cookies invalid)
             if "/login" in page.url:
                 print("ERROR: Cookies are invalid. Redirected to login page.")
                 browser.close()
                 return False
             
-            # Find and click file input
             print("Uploading video file...")
             file_input = page.locator('input[type="file"]').first
             file_input.set_input_files(file_path)
             
-            # Wait for video to process
             print("Waiting for video to upload and process...")
             page.wait_for_timeout(15000)
             
-            # Dismiss any modal overlays (copyright check, etc)
-            print("Dismissing any modals...")
+            page.screenshot(path="after_upload.png")
+            link = upload_screenshot_to_fileio("after_upload.png")
+            print(f"Screenshot after video upload: {link}")
+            
             for _ in range(5):
                 try:
-                    # Try various close/dismiss buttons
                     for selector in [
                         "button:has-text('Got it')",
                         "button:has-text('Close')", 
@@ -160,7 +161,6 @@ def upload_to_tiktok(file_path, description):
                         "button:has-text('OK')",
                         "div[class*='modal'] button",
                         "[data-e2e='modal-close-button']",
-                        "div[class*='Modal-overlay']",
                     ]:
                         try:
                             btn = page.locator(selector).first
@@ -172,12 +172,8 @@ def upload_to_tiktok(file_path, description):
                 except:
                     pass
             
-            page.wait_for_timeout(3000)
-            
-            # Set description/caption
             print("Setting description...")
             try:
-                # Try to find the caption editor
                 caption_editor = page.locator("div[contenteditable='true']").first
                 if caption_editor.is_visible(timeout=5000):
                     caption_editor.click(force=True)
@@ -185,7 +181,6 @@ def upload_to_tiktok(file_path, description):
                     page.keyboard.press("Control+a")
                     page.keyboard.press("Backspace")
                     page.wait_for_timeout(500)
-                    # Type description character by character
                     for char in description:
                         page.keyboard.type(char, delay=20)
                     print("Description set!")
@@ -194,16 +189,11 @@ def upload_to_tiktok(file_path, description):
             
             page.wait_for_timeout(5000)
             
-            # Wait more for video processing
-            print("Waiting for video to finish processing...")
-            page.wait_for_timeout(20000)
+            page.screenshot(path="before_post.png")
+            link = upload_screenshot_to_fileio("before_post.png")
+            print(f"Screenshot before posting: {link}")
             
-            # Dismiss modals again before posting
-            for selector in [
-                "button:has-text('Got it')",
-                "button:has-text('Close')",
-                "button:has-text('Dismiss')",
-            ]:
+            for selector in ["button:has-text('Got it')", "button:has-text('Close')", "button:has-text('Dismiss')"]:
                 try:
                     btn = page.locator(selector)
                     if btn.is_visible(timeout=1000):
@@ -212,11 +202,9 @@ def upload_to_tiktok(file_path, description):
                 except:
                     pass
             
-            # Click Post button
             print("Looking for Post button...")
             posted = False
             
-            # Try multiple selectors for the post button
             post_selectors = [
                 "button:has-text('Post')",
                 "button[data-e2e='post-button']",
@@ -236,7 +224,6 @@ def upload_to_tiktok(file_path, description):
                     continue
             
             if not posted:
-                # Last resort: try JavaScript click
                 try:
                     page.evaluate("""
                         const buttons = document.querySelectorAll('button');
@@ -253,35 +240,31 @@ def upload_to_tiktok(file_path, description):
                     print(f"JS click failed: {e}")
             
             if posted:
-                # Wait for upload to complete
-                page.wait_for_timeout(15000)
+                print("Wait 20 seconds after posting...")
+                page.wait_for_timeout(20000)
                 
-                # Check for success indicators
+                page.screenshot(path="after_post.png")
+                link = upload_screenshot_to_fileio("after_post.png")
+                print(f"Screenshot after posting: {link}")
+                
                 current_url = page.url
                 page_content = page.content()
                 
-                if "manage" in current_url or "Your video is being uploaded" in page_content or "uploaded" in page_content.lower():
+                if "manage" in current_url or "Your video is being uploaded" in page_content or "uploaded" in page_content.lower() or "post" not in current_url:
                     print("SUCCESS: Video posted to TikTok!")
                     browser.close()
                     return True
                 else:
                     print(f"Post button clicked but unclear if successful. URL: {current_url}")
-                    # Take screenshot
-                    page.screenshot(path="post_result.png")
                     browser.close()
-                    return True  # Assume success since we clicked post
+                    return False
             else:
                 print("ERROR: Could not find post button!")
-                page.screenshot(path="debug_no_post_btn.png")
                 browser.close()
                 return False
                 
         except Exception as e:
             print(f"Upload error: {e}")
-            try:
-                page.screenshot(path="debug_error.png")
-            except:
-                pass
             browser.close()
             return False
 
@@ -340,7 +323,6 @@ def main():
     message_id_to_post = queue[0]
     print(f"Going to post message ID: {message_id_to_post}")
     
-    # Step 1: Download from Telegram
     file_path, caption = download_clip(api_id, api_hash, bot_token, channel_id, message_id_to_post)
     
     if not file_path:
@@ -352,7 +334,6 @@ def main():
     print(f"Downloaded: {file_path}")
     description = f"{caption} #movie #foryou #clips"
     
-    # Step 2: Random delay
     if not os.environ.get("IMMEDIATE"):
         delay = random.randint(30, 300)
         print(f"Waiting {delay} seconds before uploading...")
@@ -360,7 +341,6 @@ def main():
     else:
         print("IMMEDIATE flag set. Uploading now.")
     
-    # Step 3: Upload to TikTok
     success = upload_to_tiktok(file_path, description)
         
     if os.path.exists(file_path):
@@ -378,4 +358,6 @@ if __name__ == "__main__":
     if not os.path.exists(COOKIES_FILE):
         print("No cookies.txt found. Exiting.")
         sys.exit(0)
+    # Ensure requests library is installed for screenshot uploads
+    os.system("pip install requests > /dev/null 2>&1")
     main()
