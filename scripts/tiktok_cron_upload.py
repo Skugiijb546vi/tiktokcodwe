@@ -17,12 +17,24 @@ def upload_screenshot_to_fileio(filepath):
     try:
         import requests
         with open(filepath, 'rb') as f:
-            response = requests.post('https://file.io', files={'file': f})
+            response = requests.post('https://tmpfiles.org/api/v1/upload', files={'file': f})
         data = response.json()
-        if data.get('success'):
-            return data.get('link')
+        if data.get('status') == 'success':
+            url = data['data']['url']
+            return url.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
     except Exception as e:
         print("Screenshot upload failed:", e)
+    
+    # Fallback to bashupload
+    try:
+        import subprocess
+        result = subprocess.run(['curl', '-s', '-T', filepath, 'https://bashupload.com/'], capture_output=True, text=True)
+        import re
+        match = re.search(r'https?://bashupload\.com/[^\s]+', result.stdout)
+        if match:
+            return match.group(0)
+    except:
+        pass
     return None
 
 def download_clip(api_id, api_hash, bot_token, channel_id, message_id):
@@ -136,6 +148,17 @@ def upload_to_tiktok(file_path, description):
             link = upload_screenshot_to_fileio("login_status.png")
             print(f"Screenshot at upload page: {link}")
             
+            try:
+                # Try to get the username from the profile picture or URL
+                profile_link = page.locator('a[href^="/@"]').first
+                if profile_link.is_visible(timeout=3000):
+                    href = profile_link.get_attribute("href")
+                    print(f"Logged in as: {href}")
+                else:
+                    print("Could not find profile link on page. Is user fully logged in?")
+            except Exception as e:
+                print("Error finding profile:", e)
+                
             if "/login" in page.url:
                 print("ERROR: Cookies are invalid. Redirected to login page.")
                 browser.close()
