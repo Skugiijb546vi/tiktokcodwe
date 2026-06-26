@@ -4,6 +4,19 @@ import subprocess
 import glob
 import asyncio
 from pyrogram import Client
+from pyrogram.raw.functions.channels import GetChannels
+from pyrogram.raw.types import InputChannel
+
+async def resolve_channel(app, channel_id):
+    """Resolve channel peer for fresh bot sessions on GitHub Actions."""
+    cid = abs(int(channel_id))
+    if cid > 1000000000000:
+        cid = int(str(cid)[3:])  # Remove "100" prefix
+    try:
+        await app.invoke(GetChannels(id=[InputChannel(channel_id=cid, access_hash=0)]))
+        print(f"Channel peer resolved successfully.")
+    except Exception as e:
+        print(f"Warning: Could not resolve channel peer: {e}")
 
 def download_video_http(url, output_filename="input_movie.mp4"):
     print(f"Downloading video from {url}...")
@@ -18,6 +31,9 @@ async def download_video_telegram(channel_id, message_id, output_filename="input
     
     app = Client("temp_downloader", api_id=api_id, api_hash=api_hash, bot_token=bot_token, in_memory=True)
     await app.start()
+    
+    # Resolve the channel peer first (needed for fresh sessions)
+    await resolve_channel(app, channel_id)
     
     message = await app.get_messages(chat_id=int(channel_id), message_ids=int(message_id))
     if not message.video and not message.document:
@@ -52,6 +68,9 @@ async def send_to_telegram(clips):
     app = Client("temp_uploader", api_id=api_id, api_hash=api_hash, bot_token=bot_token, in_memory=True)
     await app.start()
     
+    # Resolve the channel peer first
+    await resolve_channel(app, channel_id)
+    
     print(f"Sending {len(clips)} clips to channel {channel_id}...")
     for index, clip in enumerate(clips):
         part_number = index + 1
@@ -71,7 +90,6 @@ async def main():
         message_id = parts[2]
         await download_video_telegram(channel_id, message_id, input_vid)
     else:
-        # It's an HTTP link
         download_video_http(video_data, input_vid)
         
     clips = process_and_split(input_vid)
