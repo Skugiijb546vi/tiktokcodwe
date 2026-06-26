@@ -39,9 +39,9 @@ async def download_video_telegram(channel_id, message_id, output_filename="input
     if not message.video and not message.document:
         raise Exception("Message does not contain a video.")
         
-    await app.download_media(message, file_name=output_filename)
+    actual_path = await app.download_media(message, file_name=output_filename)
     await app.stop()
-    return output_filename
+    return actual_path
 
 def process_and_split(input_file, output_dir="clips"):
     if not os.path.exists(output_dir):
@@ -88,7 +88,7 @@ async def main():
         parts = video_data.split(":")
         channel_id = parts[1]
         message_id = parts[2]
-        await download_video_telegram(channel_id, message_id, input_vid)
+        input_vid = await download_video_telegram(channel_id, message_id, input_vid)
     else:
         download_video_http(video_data, input_vid)
         
