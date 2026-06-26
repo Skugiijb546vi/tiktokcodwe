@@ -17,7 +17,7 @@ jobs:
         python-version: '3.10'
     - run: pip install -r requirements.txt
     - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-    - run: playwright install
+    - run: playwright install --with-deps
     - env:
         API_ID: ${{ secrets.API_ID }}
         API_HASH: ${{ secrets.API_HASH }}
@@ -27,4 +27,5 @@ jobs:
       run: |
         echo "$TIKTOK_COOKIES" > cookies.txt
         python scripts/process_and_send.py "${{ github.event.inputs.video_url }}"
-        python scripts/tiktok_cron_upload.py
+        IMMEDIATE=1 python scripts/tiktok_cron_upload.py
+
