@@ -4,6 +4,23 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 import config
 
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class DummyHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running!")
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(('0.0.0.0', port), DummyHandler)
+    server.serve_forever()
+
+# Start dummy server for Render
+threading.Thread(target=run_dummy_server, daemon=True).start()
+
 app = Client(
     "tiktok_bot_session",
     api_id=config.API_ID,
