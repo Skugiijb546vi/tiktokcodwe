@@ -12,6 +12,11 @@ class DummyHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"Bot is running!")
+        
+    # ئەم بەشەم بۆ زیاد کردوویت بۆ چارەسەری هەڵەی 501ی UptimeRobot
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 10000))
