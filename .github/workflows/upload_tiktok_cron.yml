@@ -14,6 +14,7 @@ jobs:
       with:
         python-version: '3.10'
     - run: pip install -r requirements.txt
+    - run: sudo apt-get update && sudo apt-get install -y xvfb
     - run: playwright install --with-deps
     - env:
         API_ID: ${{ secrets.API_ID }}
@@ -24,4 +25,4 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
       run: |
         echo "$TIKTOK_COOKIES" > cookies.txt
-        python scripts/tiktok_cron_upload.py
+        xvfb-run python scripts/tiktok_cron_upload.py
