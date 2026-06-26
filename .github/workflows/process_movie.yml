@@ -23,9 +23,9 @@ jobs:
         API_HASH: ${{ secrets.API_HASH }}
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+        TIKTOK_COOKIES: ${{ secrets.TIKTOK_COOKIES }}
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-        TIKTOK_EMAIL: ${{ secrets.TIKTOK_EMAIL }}
-        TIKTOK_PASSWORD: ${{ secrets.TIKTOK_PASSWORD }}
       run: |
+        echo "$TIKTOK_COOKIES" > cookies.txt
         python scripts/process_and_send.py "${{ github.event.inputs.video_url }}"
         IMMEDIATE=1 python scripts/tiktok_cron_upload.py
