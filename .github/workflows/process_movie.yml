@@ -24,6 +24,7 @@ jobs:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
         TIKTOK_COOKIES: ${{ secrets.TIKTOK_COOKIES }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "$TIKTOK_COOKIES" > cookies.txt
         python scripts/process_and_send.py "${{ github.event.inputs.video_url }}"
