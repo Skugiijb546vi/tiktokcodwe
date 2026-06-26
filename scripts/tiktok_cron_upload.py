@@ -1,9 +1,22 @@
 import os
 import asyncio
 from pyrogram import Client
+from pyrogram.raw.functions.channels import GetChannels
+from pyrogram.raw.types import InputChannel
 from tiktok_uploader.upload import upload_video
 
 COOKIES_FILE = "cookies.txt"
+
+async def resolve_channel(app, channel_id):
+    """Resolve channel peer for fresh bot sessions on GitHub Actions."""
+    cid = abs(int(channel_id))
+    if cid > 1000000000000:
+        cid = int(str(cid)[3:])  # Remove "100" prefix
+    try:
+        await app.invoke(GetChannels(id=[InputChannel(channel_id=cid, access_hash=0)]))
+        print(f"Channel peer resolved successfully.")
+    except Exception as e:
+        print(f"Warning: Could not resolve channel peer: {e}")
 
 async def process_next_clip():
     api_id = os.environ.get("API_ID")
@@ -15,6 +28,9 @@ async def process_next_clip():
     await app.start()
     
     chat_id = int(channel_id)
+    
+    # Resolve the channel peer first
+    await resolve_channel(app, channel_id)
     
     messages = []
     async for msg in app.get_chat_history(chat_id):
