@@ -47,9 +47,12 @@ async def process_next_clip():
     description = f"{caption} #movie #foryou #clips"
     
     # RANDOM DELAY FOR TIKTOK SAFETY
-    delay = random.randint(10, 180)
-    print(f"Waiting {delay} seconds before uploading to mimic human behavior...")
-    time.sleep(delay)
+    if not os.environ.get("IMMEDIATE"):
+        delay = random.randint(60, 2400)
+        print(f"Waiting {delay} seconds before uploading to mimic human behavior...")
+        time.sleep(delay)
+    else:
+        print("IMMEDIATE flag set. Uploading right now without delay.")
     
     try:
         upload_video(file_path, description=description, cookies=COOKIES_FILE)
