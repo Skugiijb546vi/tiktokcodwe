@@ -35,22 +35,31 @@ def download_clip(api_id, api_hash, bot_token, channel_id, message_id):
     return asyncio.run(_download())
 
 def delete_message(api_id, api_hash, bot_token, channel_id, message_id):
-    async def _delete():
-        app = Client("temp_del", api_id=api_id, api_hash=api_hash, bot_token=bot_token, in_memory=True)
-        await app.start()
-        cid = abs(int(channel_id))
-        if cid > 1000000000000:
-            cid = int(str(cid)[3:])
-        try:
-            await app.invoke(GetChannels(id=[InputChannel(channel_id=cid, access_hash=0)]))
-        except:
-            pass
-        try:
-            await app.delete_messages(chat_id=int(channel_id), message_ids=int(message_id))
-        except:
-            pass
-        await app.stop()
-    asyncio.run(_delete())
+    import threading
+    def _run():
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        async def _delete():
+            app = Client("temp_del", api_id=api_id, api_hash=api_hash, bot_token=bot_token, in_memory=True)
+            await app.start()
+            cid = abs(int(channel_id))
+            if cid > 1000000000000:
+                cid = int(str(cid)[3:])
+            try:
+                await app.invoke(GetChannels(id=[InputChannel(channel_id=cid, access_hash=0)]))
+            except:
+                pass
+            try:
+                await app.delete_messages(chat_id=int(channel_id), message_ids=int(message_id))
+            except:
+                pass
+            await app.stop()
+        loop.run_until_complete(_delete())
+        loop.close()
+    t = threading.Thread(target=_run)
+    t.start()
+    t.join(timeout=30)
 
 def get_queue_from_github():
     token = os.environ.get("GITHUB_TOKEN")
