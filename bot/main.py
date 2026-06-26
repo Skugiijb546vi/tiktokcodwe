@@ -30,7 +30,7 @@ app = Client(
 
 @app.on_message(filters.command("start"))
 async def start_handler(client: Client, message: Message):
-    await message.reply_text("Slaw! Mn boty tiktok uploader-m. Linky flmakam bo bnera yan flmaka xoy forward bka bo erA tawe btawanm dest pebkam.")
+    await message.reply_text("Ø³ÚµØ§Ùˆ! Ù…Ù† Ø¨Û†ØªÛŒ ØªØ§ÛŒØ¨Û•ØªÛŒ ØªÛ†Ù… Ø¨Û† Ø¦Ø§Ù…Ø§Ø¯Û•Ú©Ø±Ø¯Ù†ÛŒ Ú¤ÛŒØ¯ÛŒÛ† Ø¨Û† ØªÛŒÚ©ØªÛ†Ú©. Ú¤ÛŒØ¯ÛŒÛ†Ú©Û•Øª Ù„ÛŽØ±Û• ÙÛ†Ø±ÙˆØ§Ø±Ø¯ Ø¨Ú©Û• ØªØ§ Ø¯Û•Ø³Øª Ù¾ÛŽ Ø¨Ú©Û•Ù….")
 
 def trigger_github(video_data):
     url = f"https://api.github.com/repos/{config.REPO_OWNER}/{config.REPO_NAME}/actions/workflows/process_movie.yml/dispatches"
@@ -72,7 +72,7 @@ async def process_video_link(client: Client, message: Message):
 
 @app.on_message(filters.video | filters.document)
 async def process_telegram_video(client: Client, message: Message):
-    msg = await message.reply_text("Flmekem letelegram wergert! Xarykem daibenem bo kanala taybetaka u GitHub agadar akamewa...")
+    msg = await message.reply_text("ðŸ“¥ Ú¤ÛŒØ¯ÛŒÛ†Ú©Û• ÙˆÛ•Ø±Ú¯ÛŒØ±Ø§ØŒ Ø®Û•Ø±ÛŒÚ©ÛŒ Ø¦Ø§Ù…Ø§Ø¯Û•Ú©Ø±Ø¯Ù†ÛŒÙ…...")
     
     if not config.CHANNEL_ID:
         await msg.edit_text("Keshaya: CHANNEL_ID diari nakrawa!")
@@ -82,12 +82,12 @@ async def process_telegram_video(client: Client, message: Message):
         # Forward the video to the dump channel
         forwarded_msg = await message.copy(chat_id=int(config.CHANNEL_ID))
         
-        # Create the special data string for github
-        video_data = f"tg_message:{config.CHANNEL_ID}:{forwarded_msg.id}"
+        # Create the special data string for github (includes chat_id for reporting)
+        video_data = f"tg_message:{config.CHANNEL_ID}:{forwarded_msg.id}:{message.chat.id}"
         
         response = trigger_github(video_data)
         if response.status_code == 204:
-            await msg.edit_text("Sarkawtuw bu! Flmaka nardra bo kanale u GitHub Actions desty pekr. Tik tokakant chawere bka.")
+            await msg.edit_text("âœ… Ú¤ÛŒØ¯ÛŒÛ†Ú©Û• ÙˆÛ•Ø±Ú¯ÛŒØ±Ø§ Ùˆ Ø®Û•Ø±ÛŒÚ©ÛŒ Ù…Û†Ù†ØªØ§Ú˜ Ùˆ Ø¨Ú•ÛŒÙ†Ù…ØŒ ØªÚ©Ø§ÛŒÛ• Ú†Ø§ÙˆÛ•Ú•ÛŽ Ø¨Ú©Û• Ø¦Û•Ù… Ù¾Ø±Û†Ø³Û•ÛŒÛ• Ù¾ÛŽÙˆÛŒØ³ØªÛŒ Ø¨Û• Ú©Ø§ØªÛ•ØŒ Ù‡Û•Ø± Ù¡Ù  Ø®ÙˆÙ„Û•Ú© Ø¬Ø§Ø±ÛŽÚ© Ú•Ø§Ù¾Û†Ø±ØªÛŽÚ©Øª Ø¨Û† Ø¯Û•Ù†ÛŽØ±Ù… Ú©Û• Ú†Û•Ù†Ø¯Ù… Ù„ÛŽ ØªÛ•ÙˆØ§Ùˆ Ú©Ø±Ø¯ÙˆÙˆÛ•...")
         else:
             await msg.edit_text(f"Kesha drwst bu la nardny bo GitHub:\nCode: {response.status_code}\nResponse: {response.text}")
             
