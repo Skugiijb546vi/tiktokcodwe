@@ -35,7 +35,7 @@ app = Client(
 
 @app.on_message(filters.command("start"))
 async def start_handler(client: Client, message: Message):
-    await message.reply_text("Ø³ÚµØ§Ùˆ! Ù…Ù† Ø¨Û†ØªÛŒ ØªØ§ÛŒØ¨Û•ØªÛŒ ØªÛ†Ù… Ø¨Û† Ø¦Ø§Ù…Ø§Ø¯Û•Ú©Ø±Ø¯Ù†ÛŒ Ú¤ÛŒØ¯ÛŒÛ† Ø¨Û† ØªÛŒÚ©ØªÛ†Ú©. Ú¤ÛŒØ¯ÛŒÛ†Ú©Û•Øª Ù„ÛŽØ±Û• ÙÛ†Ø±ÙˆØ§Ø±Ø¯ Ø¨Ú©Û• ØªØ§ Ø¯Û•Ø³Øª Ù¾ÛŽ Ø¨Ú©Û•Ù….")
+    await message.reply_text("سڵاو! من بۆتی تایبەتی تۆم بۆ ئامادەکردنی ڤیدیۆ بۆ تیکتۆک. ڤیدیۆکەت لێرە فۆروارد بکە تا دەست پێ بکەم.")
 
 def trigger_github(video_data):
     url = f"https://api.github.com/repos/{config.REPO_OWNER}/{config.REPO_NAME}/actions/workflows/process_movie.yml/dispatches"
@@ -77,7 +77,7 @@ async def process_video_link(client: Client, message: Message):
 
 @app.on_message(filters.video | filters.document)
 async def process_telegram_video(client: Client, message: Message):
-    msg = await message.reply_text("ðŸ“¥ Ú¤ÛŒØ¯ÛŒÛ†Ú©Û• ÙˆÛ•Ø±Ú¯ÛŒØ±Ø§ØŒ Ø®Û•Ø±ÛŒÚ©ÛŒ Ø¦Ø§Ù…Ø§Ø¯Û•Ú©Ø±Ø¯Ù†ÛŒÙ…...")
+    msg = await message.reply_text("📥 ڤیدیۆکە وەرگیرا، خەریکی ئامادەکردنیم...")
     
     if not config.CHANNEL_ID:
         await msg.edit_text("Keshaya: CHANNEL_ID diari nakrawa!")
@@ -92,7 +92,7 @@ async def process_telegram_video(client: Client, message: Message):
         
         response = trigger_github(video_data)
         if response.status_code == 204:
-            await msg.edit_text("âœ… Ú¤ÛŒØ¯ÛŒÛ†Ú©Û• ÙˆÛ•Ø±Ú¯ÛŒØ±Ø§ Ùˆ Ø®Û•Ø±ÛŒÚ©ÛŒ Ù…Û†Ù†ØªØ§Ú˜ Ùˆ Ø¨Ú•ÛŒÙ†Ù…ØŒ ØªÚ©Ø§ÛŒÛ• Ú†Ø§ÙˆÛ•Ú•ÛŽ Ø¨Ú©Û• Ø¦Û•Ù… Ù¾Ø±Û†Ø³Û•ÛŒÛ• Ù¾ÛŽÙˆÛŒØ³ØªÛŒ Ø¨Û• Ú©Ø§ØªÛ•ØŒ Ù‡Û•Ø± Ù¡Ù  Ø®ÙˆÙ„Û•Ú© Ø¬Ø§Ø±ÛŽÚ© Ú•Ø§Ù¾Û†Ø±ØªÛŽÚ©Øª Ø¨Û† Ø¯Û•Ù†ÛŽØ±Ù… Ú©Û• Ú†Û•Ù†Ø¯Ù… Ù„ÛŽ ØªÛ•ÙˆØ§Ùˆ Ú©Ø±Ø¯ÙˆÙˆÛ•...")
+            await msg.edit_text("✅ ڤیدیۆکە وەرگیرا و خەریکی مۆنتاژ و بڕینم، تکایە چاوەڕێ بکە ئەم پرۆسەیە پێویستی بە کاتە، هەر ١٠ خولەک جارێک ڕاپۆرتێکت بۆ دەنێرم کە چەندم لێ تەواو کردووە...")
         else:
             await msg.edit_text(f"Kesha drwst bu la nardny bo GitHub:\nCode: {response.status_code}\nResponse: {response.text}")
             
@@ -102,3 +102,4 @@ async def process_telegram_video(client: Client, message: Message):
 if __name__ == "__main__":
     print("Bot started...")
     app.run()
+
