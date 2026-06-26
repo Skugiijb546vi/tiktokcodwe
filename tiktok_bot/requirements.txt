@@ -1,7 +1,0 @@
-pyrogram
-tgcrypto
-ffmpeg-python
-requests
-python-dotenv
-yt-dlp
-tiktok-uploader
