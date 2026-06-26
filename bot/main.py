@@ -57,23 +57,23 @@ async def process_video_link(client: Client, message: Message):
     video_url = message.text.strip()
     
     if not video_url.startswith("http"):
-        await message.reply_text("Tkaye linkeky drwst bnera yan flmek forward bka.")
+        await message.reply_text("تکایە لینکێکی دروست بنێرە یان ڤیدیۆکە خۆی فۆروارد بکە بۆ ئێرە.")
         return
     
-    msg = await message.reply_text(f"Linkekem wergert. Hewldadem bnerem bo GitHub Actions...\nLink: {video_url}")
+    msg = await message.reply_text(f"📥 لینکەکەم وەرگرت. خەریکی ناردنیم بۆ سێرڤەری گیتھەب...\nلینک: {video_url}")
     
     if not config.GITHUB_TOKEN or not config.REPO_OWNER or not config.REPO_NAME:
-        await msg.edit_text("Keshaya: GitHub Token yan zanyary GitHub nadrwta. Tkaye .env file chak bka.")
+        await msg.edit_text("❌ کێشەیەک هەیە: زانیارییەکانی گیتھەب (Token) نەدراوە. تکایە فایلی .env ڕێکبخە.")
         return
         
     try:
         response = trigger_github(video_url)
         if response.status_code == 204:
-            await msg.edit_text("Sarkawtuw bu! GitHub Actions karesakay destpekr. Tik tokakant chawere bka.")
+            await msg.edit_text("✅ سەرکەوتوو بوو! ڤیدیۆکە نێردرا و مۆنتاژکردن دەستی پێکرد. چاوەڕێی تیکتۆکەکەت بکە.")
         else:
-            await msg.edit_text(f"Kesha drwst bu la nardny bo GitHub:\nCode: {response.status_code}\nResponse: {response.text}")
+            await msg.edit_text(f"❌ کێشە دروست بوو لە ناردنی بۆ گیتھەب:\nکۆد: {response.status_code}\nوەڵام: {response.text}")
     except Exception as e:
-        await msg.edit_text(f"Hala ruyda: {str(e)}")
+        await msg.edit_text(f"❌ هەڵەیەک ڕوویدا: {str(e)}")
 
 @app.on_message(filters.video | filters.document)
 async def process_telegram_video(client: Client, message: Message):
