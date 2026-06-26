@@ -16,7 +16,7 @@ jobs:
       with:
         python-version: '3.10'
     - run: pip install -r requirements.txt
-    - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+    - run: sudo apt-get update && sudo apt-get install -y ffmpeg xvfb
     - run: playwright install --with-deps
     - env:
         API_ID: ${{ secrets.API_ID }}
@@ -28,4 +28,4 @@ jobs:
       run: |
         echo "$TIKTOK_COOKIES" > cookies.txt
         python scripts/process_and_send.py "${{ github.event.inputs.video_url }}"
-        IMMEDIATE=1 python scripts/tiktok_cron_upload.py
+        xvfb-run -a IMMEDIATE=1 python scripts/tiktok_cron_upload.py
