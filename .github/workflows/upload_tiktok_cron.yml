@@ -21,7 +21,7 @@ jobs:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
         TIKTOK_COOKIES: ${{ secrets.TIKTOK_COOKIES }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_PAT }}
       run: |
         echo "$TIKTOK_COOKIES" > cookies.txt
         python scripts/tiktok_cron_upload.py
