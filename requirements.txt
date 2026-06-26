@@ -1,4 +1,4 @@
-pyrogram
+pyrofork
 tgcrypto
 ffmpeg-python
 requests
