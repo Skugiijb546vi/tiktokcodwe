@@ -1,10 +1,11 @@
 import os
-import asyncio
+import sys
 import time
 import random
 import json
 import base64
 import urllib.request
+import asyncio
 from pyrogram import Client
 from pyrogram.raw.functions.channels import GetChannels
 from pyrogram.raw.types import InputChannel
@@ -12,14 +13,66 @@ from tiktok_uploader.upload import upload_video
 
 COOKIES_FILE = "cookies.txt"
 
-async def resolve_channel(app, channel_id):
-    cid = abs(int(channel_id))
-    if cid > 1000000000000:
-        cid = int(str(cid)[3:])
-    try:
-        await app.invoke(GetChannels(id=[InputChannel(channel_id=cid, access_hash=0)]))
-    except Exception as e:
-        pass
+def resolve_channel_sync(api_id, api_hash, bot_token, channel_id):
+    """Synchronously resolve channel and return nothing."""
+    async def _resolve():
+        app = Client("temp_resolver", api_id=api_id, api_hash=api_hash, bot_token=bot_token, in_memory=True)
+        await app.start()
+        cid = abs(int(channel_id))
+        if cid > 1000000000000:
+            cid = int(str(cid)[3:])
+        try:
+            await app.invoke(GetChannels(id=[InputChannel(channel_id=cid, access_hash=0)]))
+        except:
+            pass
+        return app
+    return asyncio.run(_resolve())
+
+def download_clip(api_id, api_hash, bot_token, channel_id, message_id):
+    """Download a clip from Telegram synchronously."""
+    async def _download():
+        app = Client("temp_dl", api_id=api_id, api_hash=api_hash, bot_token=bot_token, in_memory=True)
+        await app.start()
+        
+        # Resolve channel
+        cid = abs(int(channel_id))
+        if cid > 1000000000000:
+            cid = int(str(cid)[3:])
+        try:
+            await app.invoke(GetChannels(id=[InputChannel(channel_id=cid, access_hash=0)]))
+        except:
+            pass
+        
+        message = await app.get_messages(chat_id=int(channel_id), message_ids=int(message_id))
+        if not message or (not message.video and not message.document):
+            await app.stop()
+            return None, None
+            
+        file_path = await app.download_media(message)
+        caption = message.caption if message.caption else "Movie Clip"
+        await app.stop()
+        return file_path, caption
+    
+    return asyncio.run(_download())
+
+def delete_message(api_id, api_hash, bot_token, channel_id, message_id):
+    """Delete a message from Telegram synchronously."""
+    async def _delete():
+        app = Client("temp_del", api_id=api_id, api_hash=api_hash, bot_token=bot_token, in_memory=True)
+        await app.start()
+        cid = abs(int(channel_id))
+        if cid > 1000000000000:
+            cid = int(str(cid)[3:])
+        try:
+            await app.invoke(GetChannels(id=[InputChannel(channel_id=cid, access_hash=0)]))
+        except:
+            pass
+        try:
+            await app.delete_messages(chat_id=int(channel_id), message_ids=int(message_id))
+        except:
+            pass
+        await app.stop()
+    asyncio.run(_delete())
 
 def get_queue_from_github():
     token = os.environ.get("GITHUB_TOKEN")
@@ -52,7 +105,6 @@ def save_queue_to_github(queue, sha):
     }
     if sha:
         put_data["sha"] = sha
-        
     req_put = urllib.request.Request(url, data=json.dumps(put_data).encode("utf-8"), method="PUT")
     req_put.add_header("Authorization", f"Bearer {token}")
     req_put.add_header("Accept", "application/vnd.github+json")
@@ -63,7 +115,7 @@ def save_queue_to_github(queue, sha):
     except Exception as e:
         print("Failed to save queue.json", e)
 
-async def process_next_clip():
+def main():
     api_id = os.environ.get("API_ID")
     api_hash = os.environ.get("API_HASH")
     bot_token = os.environ.get("BOT_TOKEN")
@@ -74,30 +126,22 @@ async def process_next_clip():
         print("Queue is empty. Nothing to post.")
         return
         
-    # Get the oldest clip (first item)
     message_id_to_post = queue[0]
     print(f"Going to post message ID: {message_id_to_post}")
     
-    app = Client("temp_downloader", api_id=api_id, api_hash=api_hash, bot_token=bot_token, in_memory=True)
-    await app.start()
+    # Step 1: Download from Telegram (async, runs in its own event loop)
+    file_path, caption = download_clip(api_id, api_hash, bot_token, channel_id, message_id_to_post)
     
-    chat_id = int(channel_id)
-    await resolve_channel(app, channel_id)
-    
-    message = await app.get_messages(chat_id=chat_id, message_ids=int(message_id_to_post))
-    if not message or (not message.video and not message.document):
-        print(f"Message {message_id_to_post} is not a valid video or deleted. Removing from queue.")
+    if not file_path:
+        print(f"Message {message_id_to_post} is not valid. Removing from queue.")
         queue.pop(0)
         save_queue_to_github(queue, sha)
-        await app.stop()
         return
-        
-    file_path = await app.download_media(message)
     
-    caption = message.caption if message.caption else "Movie Clip"
+    print(f"Downloaded: {file_path}")
     description = f"{caption} #movie #foryou #clips"
     
-    # RANDOM DELAY FOR TIKTOK SAFETY
+    # Step 2: Random delay
     if not os.environ.get("IMMEDIATE"):
         delay = random.randint(60, 2400)
         print(f"Waiting {delay} seconds before uploading to mimic human behavior...")
@@ -105,10 +149,12 @@ async def process_next_clip():
     else:
         print("IMMEDIATE flag set. Uploading right now without delay.")
     
+    # Step 3: Upload to TikTok (sync - Playwright runs here without asyncio conflict)
     success = False
     try:
         upload_video(file_path, description=description, cookies=COOKIES_FILE)
         success = True
+        print("Successfully uploaded to TikTok!")
     except Exception as e:
         print(f"Failed to upload: {e}")
         
@@ -116,16 +162,11 @@ async def process_next_clip():
         os.remove(file_path)
         
     if success:
-        # Delete from telegram channel
-        try:
-            await message.delete()
-        except: pass
-        # Remove from queue
+        # Step 4: Delete from Telegram and update queue
+        delete_message(api_id, api_hash, bot_token, channel_id, message_id_to_post)
         queue.pop(0)
         save_queue_to_github(queue, sha)
-        
-    await app.stop()
 
 if __name__ == "__main__":
     if os.path.exists(COOKIES_FILE):
-        asyncio.run(process_next_clip())
+        main()
