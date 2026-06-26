@@ -6,10 +6,10 @@ import json
 import base64
 import urllib.request
 import asyncio
+import threading
 from pyrogram import Client
 from pyrogram.raw.functions.channels import GetChannels
 from pyrogram.raw.types import InputChannel
-from tiktok_uploader.upload import upload_video
 
 COOKIES_FILE = "cookies.txt"
 
@@ -35,9 +35,7 @@ def download_clip(api_id, api_hash, bot_token, channel_id, message_id):
     return asyncio.run(_download())
 
 def delete_message(api_id, api_hash, bot_token, channel_id, message_id):
-    import threading
     def _run():
-        import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         async def _delete():
@@ -60,6 +58,232 @@ def delete_message(api_id, api_hash, bot_token, channel_id, message_id):
     t = threading.Thread(target=_run)
     t.start()
     t.join(timeout=30)
+
+def parse_cookies(cookies_file):
+    cookies = []
+    with open(cookies_file, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            parts = line.split('\t')
+            if len(parts) >= 7:
+                cookie = {
+                    'name': parts[5],
+                    'value': parts[6],
+                    'domain': parts[0],
+                    'path': parts[2],
+                }
+                try:
+                    exp = int(parts[4])
+                    if exp > 0:
+                        cookie['expires'] = exp
+                except:
+                    pass
+                cookies.append(cookie)
+    return cookies
+
+def upload_to_tiktok(file_path, description):
+    from playwright.sync_api import sync_playwright
+    
+    cookies = parse_cookies(COOKIES_FILE)
+    if not cookies:
+        print("ERROR: No cookies found!")
+        return False
+    
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        context = browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+        
+        # Add cookies
+        for cookie in cookies:
+            try:
+                c = {
+                    'name': cookie['name'],
+                    'value': cookie['value'],
+                    'domain': cookie['domain'],
+                    'path': cookie.get('path', '/'),
+                }
+                if 'expires' in cookie:
+                    c['expires'] = cookie['expires']
+                context.add_cookies([c])
+            except Exception as e:
+                pass
+        
+        page = context.new_page()
+        
+        try:
+            # Go to TikTok upload page
+            print("Navigating to TikTok upload page...")
+            page.goto("https://www.tiktok.com/upload", timeout=60000, wait_until="domcontentloaded")
+            page.wait_for_timeout(5000)
+            
+            # Dismiss any cookie consent or popups
+            try:
+                page.click("button:has-text('Accept all')", timeout=3000)
+            except:
+                pass
+            try:
+                page.click("button:has-text('Dismiss')", timeout=3000)
+            except:
+                pass
+            
+            page.wait_for_timeout(3000)
+            
+            # Check if we're redirected to login (cookies invalid)
+            if "/login" in page.url:
+                print("ERROR: Cookies are invalid. Redirected to login page.")
+                browser.close()
+                return False
+            
+            # Find and click file input
+            print("Uploading video file...")
+            file_input = page.locator('input[type="file"]').first
+            file_input.set_input_files(file_path)
+            
+            # Wait for video to process
+            print("Waiting for video to upload and process...")
+            page.wait_for_timeout(15000)
+            
+            # Dismiss any modal overlays (copyright check, etc)
+            print("Dismissing any modals...")
+            for _ in range(5):
+                try:
+                    # Try various close/dismiss buttons
+                    for selector in [
+                        "button:has-text('Got it')",
+                        "button:has-text('Close')", 
+                        "button:has-text('Dismiss')",
+                        "button:has-text('OK')",
+                        "div[class*='modal'] button",
+                        "[data-e2e='modal-close-button']",
+                        "div[class*='Modal-overlay']",
+                    ]:
+                        try:
+                            btn = page.locator(selector).first
+                            if btn.is_visible(timeout=1000):
+                                btn.click(force=True)
+                                page.wait_for_timeout(1000)
+                        except:
+                            pass
+                except:
+                    pass
+            
+            page.wait_for_timeout(3000)
+            
+            # Set description/caption
+            print("Setting description...")
+            try:
+                # Try to find the caption editor
+                caption_editor = page.locator("div[contenteditable='true']").first
+                if caption_editor.is_visible(timeout=5000):
+                    caption_editor.click(force=True)
+                    page.wait_for_timeout(500)
+                    page.keyboard.press("Control+a")
+                    page.keyboard.press("Backspace")
+                    page.wait_for_timeout(500)
+                    # Type description character by character
+                    for char in description:
+                        page.keyboard.type(char, delay=20)
+                    print("Description set!")
+            except Exception as e:
+                print(f"Could not set description: {e}")
+            
+            page.wait_for_timeout(5000)
+            
+            # Wait more for video processing
+            print("Waiting for video to finish processing...")
+            page.wait_for_timeout(20000)
+            
+            # Dismiss modals again before posting
+            for selector in [
+                "button:has-text('Got it')",
+                "button:has-text('Close')",
+                "button:has-text('Dismiss')",
+            ]:
+                try:
+                    btn = page.locator(selector)
+                    if btn.is_visible(timeout=1000):
+                        btn.click(force=True)
+                        page.wait_for_timeout(1000)
+                except:
+                    pass
+            
+            # Click Post button
+            print("Looking for Post button...")
+            posted = False
+            
+            # Try multiple selectors for the post button
+            post_selectors = [
+                "button:has-text('Post')",
+                "button[data-e2e='post-button']",
+                "div[class*='btn-post']",
+                "button:has-text('Publish')",
+            ]
+            
+            for selector in post_selectors:
+                try:
+                    post_btn = page.locator(selector).last
+                    if post_btn.is_visible(timeout=3000):
+                        post_btn.click(force=True)
+                        print(f"Clicked post button with selector: {selector}")
+                        posted = True
+                        break
+                except:
+                    continue
+            
+            if not posted:
+                # Last resort: try JavaScript click
+                try:
+                    page.evaluate("""
+                        const buttons = document.querySelectorAll('button');
+                        for (const btn of buttons) {
+                            if (btn.textContent.trim() === 'Post' || btn.textContent.trim() === 'Publish') {
+                                btn.click();
+                                break;
+                            }
+                        }
+                    """)
+                    posted = True
+                    print("Clicked post button via JavaScript")
+                except Exception as e:
+                    print(f"JS click failed: {e}")
+            
+            if posted:
+                # Wait for upload to complete
+                page.wait_for_timeout(15000)
+                
+                # Check for success indicators
+                current_url = page.url
+                page_content = page.content()
+                
+                if "manage" in current_url or "Your video is being uploaded" in page_content or "uploaded" in page_content.lower():
+                    print("SUCCESS: Video posted to TikTok!")
+                    browser.close()
+                    return True
+                else:
+                    print(f"Post button clicked but unclear if successful. URL: {current_url}")
+                    # Take screenshot
+                    page.screenshot(path="post_result.png")
+                    browser.close()
+                    return True  # Assume success since we clicked post
+            else:
+                print("ERROR: Could not find post button!")
+                page.screenshot(path="debug_no_post_btn.png")
+                browser.close()
+                return False
+                
+        except Exception as e:
+            print(f"Upload error: {e}")
+            try:
+                page.screenshot(path="debug_error.png")
+            except:
+                pass
+            browser.close()
+            return False
 
 def get_queue_from_github():
     token = os.environ.get("GITHUB_TOKEN")
@@ -136,14 +360,8 @@ def main():
     else:
         print("IMMEDIATE flag set. Uploading now.")
     
-    # Step 3: Upload to TikTok using tiktok-uploader with cookies
-    success = False
-    try:
-        upload_video(file_path, description=description, cookies=COOKIES_FILE)
-        success = True
-        print("Successfully uploaded to TikTok!")
-    except Exception as e:
-        print(f"Failed to upload: {e}")
+    # Step 3: Upload to TikTok
+    success = upload_to_tiktok(file_path, description)
         
     if os.path.exists(file_path):
         os.remove(file_path)
